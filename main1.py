@@ -5,8 +5,8 @@ import telebot
 from pyexpat.errors import messages
 from telebot import types
 
-#bot = telebot.TeleBot('8183618236:AAHbYsy-KL0Am1l3qfc6tI_rsGzNFavY3rw') #мой бот
-bot = telebot.TeleBot('7717112661:AAFx6LP6q89l_8ful01HrH50gT0mOB28Nps') #бот для колледжа
+
+bot = telebot.TeleBot('')
 
 user_data = {}
 gift_suggestions = {
