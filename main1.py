@@ -6,7 +6,7 @@ from pyexpat.errors import messages
 from telebot import types
 
 
-bot = telebot.TeleBot('')
+bot = telebot.TeleBot('7717112661:AAFx6LP6q89l_8ful01HrH50gT0mOB28Nps')
 
 user_data = {}
 gift_suggestions = {
