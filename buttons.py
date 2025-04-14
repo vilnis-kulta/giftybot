@@ -1,10 +1,11 @@
-import random
+from contextlib import nullcontext
 
 import psycopg2
 import telebot
 from telebot import types
+import logging
 
-bot = telebot.TeleBot('')
+bot = telebot.TeleBot('7697399540:AAEw0uM5mTRJKnDTUxlbjsXjblkFlLXcuOA')
 
 user_data = {}
 
@@ -70,7 +71,7 @@ def handle_relation(message):
         user_data[message.chat.id] = {}
     user_data[message.chat.id]['relation'] = relation_map[message.text]
 
-    data = user_data[message.chat.id]  # ← добавил эту строку
+    data = user_data[message.chat.id]
 
     gender = data.get('gender')
     age = data.get('age')
@@ -113,52 +114,57 @@ def get_gift_from_db(gender, age, holiday, budget, relation):
         "Женщина": "Женский"
     }
 
-    table_name = table_map.get(holiday)
-    if not table_name:
-        return "Не удалось найти таблицу для праздника."
-
-    # Преобразуем значения в те, что в БД
-    gender = gender_map.get(gender, gender)
-    age = age_map.get(age, age)
-    budget = budget_map.get(budget, budget)
-
     try:
+        table_name = table_map.get(holiday)
+        if not table_name:
+            return f"❌ Ошибка: не найдена таблица для праздника '{holiday}'."
+
+        # Преобразуем значения в те, что в БД
+        gender = gender_map.get(gender, gender)
+        age = age_map.get(age, age).lower()
+        budget = budget_map.get(budget, budget).lower()
+        relation = relation.lower()
+
+        # Отладочный лог
+        debug_info = f"Запрос: пол={gender}, возраст={age}, бюджет={budget}, отношение={relation}, таблица={table_name}"
+        print(debug_info)
+
         conn = psycopg2.connect(
             dbname="postgres",
             user="postgres",
             password="password",
-            host="localhost",  # или ваш хост
-            port="5432"  # или ваш порт
+            host="localhost",
+            port="5432"
         )
         cursor = conn.cursor()
 
         # Выполняем запрос с фильтрами
+        testData = user_data
         query = f"""
-        SELECT gift_name, gift_number, store 
-        FROM {table_name}
-        WHERE sex = %s
-        AND age = %s
-        AND budget = %s
-        AND relation = %s
-        """
+                SELECT gift_name, gift_number, store 
+                FROM {table_name}
+                WHERE TRIM(sex) = %s
+                AND LOWER(age) = %s
+                AND LOWER(budget) = %s
+                AND LOWER(relation) = %s
+            """
         cursor.execute(query, (gender, age, budget, relation))
         results = cursor.fetchall()
-        conn.close()
 
         if results:
-            # Формируем строку с результатами
-            gift_details = [f"🎁 Подарок: {gift[0]}, Артикул: {gift[1]}, Магазин: {gift[2]}" for gift in results]
+            gift_details = [
+                f"🎁 Подарок: {gift[0]}, Артикул: {gift[1]}, Магазин: {gift[2]}"
+                for gift in results
+            ]
             return "\n".join(gift_details)
         else:
-            return "К сожалению, подходящих подарков не найдено."
-
-        question_markup = types.InlineKeyboardMarkup()
-        question_markup.add(types.InlineKeyboardButton('Подобрать подарок снова', callback_data='restart_gift'))
-        question_markup.add(types.InlineKeyboardButton('Закончить', callback_data='end'))
-
-        bot.send_message(call.message.chat.id, gifts_message, reply_markup=question_markup)
+            return f"😔 Подарков не найдено.\n{debug_info}"
 
     except Exception as e:
-        return f"Ошибка при обращении к базе данных: {e}"
+        return f"⚠️ Ошибка при обращении к базе данных:\n{e}"
+
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 bot.polling()
